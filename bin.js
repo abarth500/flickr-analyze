@@ -58,7 +58,7 @@ args.parse(process.argv.slice(2), function(errors, options) {
         url: url,
         col: col,
         argv: argv,
-        output: 'JSON'
+        output: 'result'
     }, function(err, result) {
         console.log(err, result);
         process.exit(0);

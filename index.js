@@ -32,8 +32,8 @@ exports.query = function(query, options, callback) {
                 log.fatal('MONGODB-> Connection Error');
                 throw new Error("mongodb error:", err);
             }
-            log.fatal(JSON.stringify(options));
-            queries[query].options(options);
+            log.debug(JSON.stringify(options));
+            queries[query].init(options);
             queries[query].run(callback, db.collection(options.col), log);
         })
 

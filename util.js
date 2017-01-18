@@ -10,6 +10,7 @@ var log = log4js.getLogger('logging');
 
 exports.validate = function(config, option) {
     var errors = [];
+    log.debug(">ENTER validate");
     let u = require('url').parse(option.url);
     if (u.protocol != "mongodb:") {
         errors.push("INVALID PROTCOL in url: " + JSON.stringify(u));
@@ -17,107 +18,122 @@ exports.validate = function(config, option) {
     var schema = config.argv;
     var argv = option.argv;
     for (let key in schema) {
-        for (let n = 0; n < schema[key].length; n++) {
+        log.trace("key:" + key + " has " + schema[key].validate.length + " constrains");
+        for (let n = 0; n < schema[key].validate.length; n++) {
             let constrain = "";
             let opt = {};
-            if (check.object(schema[key][n])) {
-                let k = Object.keys(schema[key][n]);
+            if (check.object(schema[key].validate[n])) {
+                let k = Object.keys(schema[key].validate[n]);
                 constrain = k[0];
-                opt = schema[key][n][constrain];
-            } else if (check.nonEmptyString(schema[key][n])) {
-                constrain = check.nonEmptyString(schema[key][n]);
+                opt = schema[key].validate[n][constrain];
+            } else if (check.nonEmptyString(schema[key].validate[n])) {
+                constrain = schema[key].validate[n];
+                opt = null;
             } else {
-                throw new TypeError("Incorrect schema(" + key + ")");
+                throw new TypeError("Incorrect schema(" + key + "):" + JSON.stringify(schema[key].validate[n]));
             }
-            if (check.undefiend(argv[key])) {
+            log.trace("\constrain:" + constrain);
+            if (check.undefined(argv[key])) {
                 if (constrain == "required") {
                     errors.push("Invalid argv: " + key + " is required");
                 } else if (constrain == "default") {
+                    log.trace("\tSet default(" + key + "):" + opt);
                     argv[key] = opt;
                 }
             } else {
-                switch (constrain) {
-                    case "default":
-                        break;
-                    case "number":
-                        if (!check.number(argv[key])) {
-                            errors.push("Invalid argv: " + key + " must be number, but given " + argv[key]);
-                        }
-                        break;
-                    case "integer":
-                        if (!check.integer(argv[key])) {
-                            errors.push("Invalid argv: " + key + " must be integer, but given " + argv[key]);
-                        }
-                        break;
-                    case "boolean":
-                        if (!check.boolean(argv[key])) {
-                            errors.push("Invalid argv: " + key + " must be boolean, but given " + argv[key]);
-                        }
-                        break;
-                    case "object":
-                        if (!check.object(argv[key])) {
-                            errors.push("Invalid argv: " + key + " must be object, but given " + argv[key]);
-                        }
-                        break;
-                    case "array":
-                        if (!check.array(argv[key])) {
-                            errors.push("Invalid argv: " + key + " must be array, but given " + argv[key]);
-                        }
-                        break;
-                    case "between":
-                        if (!check.between(argv[key], opt.min, opt.max)) {
-                            errors.push("Invalid argv: " + key + " must be between (" + opt.min + ", " + opt.max + "), but given " + argv[key]);
-                        }
-                        break;
-                    case "inRange":
-                        if (!check.inRange(argv[key], opt.min, opt.max)) {
-                            errors.push("Invalid argv: " + key + " must be in Range of (" + opt.min + ", " + opt.max + "), but given " + argv[key]);
-                        }
-                        break;
-                    case "greater":
-                        if (!check.greater(argv[key], opt)) {
-                            errors.push("Invalid argv: " + key + " must be > " + opt + ", but given " + argv[key]);
-                        }
-                        break;
-                    case "greaterOrEqual":
-                        if (!check.greaterOrEqual(argv[key], opt)) {
-                            errors.push("Invalid argv: " + key + " must be >= " + opt + ", but given " + argv[key]);
-                        }
-                        break;
-                    case "less":
-                        if (!check.less(argv[key]), opt) {
-                            errors.push("Invalid argv: " + key + " must be < " + opt + ", but given " + argv[key]);
-                        }
-                        break;
-                    case "lessOrEqual":
-                        if (!check.lessOrEqual(argv[key]), opt) {
-                            errors.push("Invalid argv: " + key + " must be <= " + opt + ", but given " + argv[key]);
-                        }
-                        break;
-                    case "in":
-                        if (!opt.find(function(v) { return v == argv[key] })) {
-                            errors.push("Invalid argv: " + key + " has to take one of " + JSON.stringify(opt) + ", but given " + argv[key]);
-                        }
-                        break
-                    case "positive":
-                        if (!check.positive(argv[key])) {
-                            errors.push("Invalid argv: " + key + " must be positive, but given " + argv[key]);
-                        }
-                        break;
-                    case "negative":
-                        if (!check.negative(argv[key])) {
-                            errors.push("Invalid argv: " + key + " must be negative, but given " + argv[key]);
-                        }
-                        break;
-                    default:
-                        throw new TypeError("Incorrect schema(" + key + ")");
+                let result = validateValue(constrain, key, argv[key], opt);
+                if (result != null) {
+                    errors.push(result);
                 }
             }
         }
+    }
+    if (!config.output.validate.find(function(v) { return v == option.output })) {
+        errors.push("Invalid output: output has to take one of [" + config.output.validate.join(",") + "] but given " + option.output);
     }
     if (errors.length > 0) {
         return errors;
     } else {
         return true;
     }
+}
+
+function validateValue(constrain, key, value, opt) {
+    switch (constrain) {
+        case "required":
+            break;
+        case "number":
+            if (!check.number(value)) {
+                return "Invalid argv: " + key + " must be number, but given " + value;
+            }
+            break;
+        case "integer":
+            if (!check.integer(value)) {
+                return "Invalid argv: " + key + " must be integer, but given " + value;
+            }
+            break;
+        case "boolean":
+            if (!check.boolean(value)) {
+                return "Invalid argv: " + key + " must be boolean, but given " + value;
+            }
+            break;
+        case "object":
+            if (!check.object(value)) {
+                return "Invalid argv: " + key + " must be object, but given " + value;
+            }
+            break;
+        case "array":
+            if (!check.array(value)) {
+                return "Invalid argv: " + key + " must be array, but given " + value;
+            }
+            break;
+        case "between":
+            if (!check.between(value, opt.min, opt.max)) {
+                return "Invalid argv: " + key + " must be between (" + opt.min + ", " + opt.max + "), but given " + value;
+            }
+            break;
+        case "inRange":
+            if (!check.inRange(value, opt.min, opt.max)) {
+                return "Invalid argv: " + key + " must be in Range of (" + opt.min + ", " + opt.max + "), but given " + value;
+            }
+            break;
+        case "greater":
+            if (!check.greater(value, opt)) {
+                return "Invalid argv: " + key + " must be > " + opt + ", but given " + value;
+            }
+            break;
+        case "greaterOrEqual":
+            if (!check.greaterOrEqual(value, opt)) {
+                return "Invalid argv: " + key + " must be >= " + opt + ", but given " + value;
+            }
+            break;
+        case "less":
+            if (!check.less(value, opt)) {
+                return "Invalid argv: " + key + " must be < " + opt + ", but given " + argv[key];
+            }
+            break;
+        case "lessOrEqual":
+            if (!check.lessOrEqual(value, opt)) {
+                return "Invalid argv: " + key + " must be <= " + opt + ", but given " + value;
+            }
+            break;
+        case "in":
+            if (!opt.find(function(v) { return v == value })) {
+                return "Invalid argv: " + key + " has to take one of " + JSON.stringify(opt) + ", but given " + value;
+            }
+            break
+        case "positive":
+            if (!check.positive(value)) {
+                return "Invalid argv: " + key + " must be positive, but given " + value;
+            }
+            break;
+        case "negative":
+            if (!check.negative(value)) {
+                return "Invalid argv: " + key + " must be negative, but given " + value;
+            }
+            break;
+        default:
+            throw new TypeError("Incorrect schema(" + key + ") constrain(" + constrain + ")");
+    }
+    return null;
 }

@@ -33,29 +33,34 @@ var config = {
             description: "(Option) like SQL limit",
             validate: [{ default: 1000000 }, "integer", "positive"]
         }
+    },
+    output: {
+        description: "This query returens one single integer, a number of photographs.",
+        validate: ["result", "value"]
     }
 }
 exports.config = config;
 
-var url = "mongodb://localhost:27017/flickr-crawler";
-var col = "flickr_photo";
+/* var url = "mongodb://localhost:27017/flickr-crawler"; */
+/* var col = "flickr_photo"; */
 var output = "JSON";
 var argv = {};
 
-exports.options = function(opt) {
+exports.init = function(opt) {
     let vld = util.validate(config, opt);
     if (vld === true) {
+        /*
         if (!check.undefined(opt.url)) {
             url = opt.url;
         }
         if (!check.undefined(opt.col)) {
             col = opt.col;
         }
+        */
         if (!check.undefined(opt.output)) {
             output = opt.output;
         }
         if (!check.undefined(opt.argv)) {
-            log.error("set argv" + JSON.stringify(opt.argv));
             argv = opt.argv;
         }
     } else {
@@ -97,7 +102,7 @@ exports.run = function(callback, col, log = null) {
                 if (err) {
                     log.error("MONGODB ERROR: Number of Photographs: " + JSON.stringify(err));
                 } else {
-                    log.debug("MONGODB RETURN: Number of Photographs: " + JSON.stringify(result));
+                    log.debug("MONGODB RETURN: Number of Photographs: " + result.length);
                 }
             }
             callback(err, result.length);
