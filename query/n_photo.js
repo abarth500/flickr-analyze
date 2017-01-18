@@ -43,7 +43,7 @@ exports.config = config;
 
 /* var url = "mongodb://localhost:27017/flickr-crawler"; */
 /* var col = "flickr_photo"; */
-var output = "JSON";
+var output = "result";
 var argv = {};
 
 exports.init = function(opt) {
@@ -105,7 +105,20 @@ exports.run = function(callback, col, log = null) {
                     log.debug("MONGODB RETURN: Number of Photographs: " + result.length);
                 }
             }
-            callback(err, result.length);
+            returnOutput(err, result.length, callback);
         }
     );
+}
+
+function returnOutput(err, value, callback) {
+    var rtn;
+    switch (output) {
+        case "result":
+            rtn = { "stat": "ok", "return": value };
+            break;
+        case "value":
+            rtn = value;
+            break;
+    }
+    callback(err, rtn);
 }
